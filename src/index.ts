@@ -1,4 +1,4 @@
-export {
+export {  
   initAnsiversaDb,
   getDbConfig,
   hasDbConfig,
@@ -8,4 +8,5 @@ export {
 
 export * as Core from "./core";
 export * as Apps from "./apps";
+export * as QuizTables from "./core/db/quiz/tables";
 export * from "./types";
