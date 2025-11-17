@@ -1,4 +1,4 @@
-import { AnsiversaDbConfig } from "./types";
+import { AnsiversaDbConfig } from "./types.js";
 
 let activeConfig: AnsiversaDbConfig | null = null;
 
@@ -23,5 +23,5 @@ export const resetDbConfig = (): void => {
   activeConfig = null;
 };
 
-export { loadEnvConfig } from "./env";
-export * from "./types";
+export { loadEnvConfig } from "./env.js";
+export * from "./types.js";

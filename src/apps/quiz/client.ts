@@ -1,7 +1,7 @@
 import { Client, createClient } from "@libsql/client";
 
-import { getDbConfig } from "../../config";
-import { DatabaseConnectionConfig } from "../../config/types";
+import { getDbConfig } from "../../config/index.js";
+import { DatabaseConnectionConfig } from "../../config/types.js";
 
 let quizClient: Client | null = null;
 

@@ -1,5 +1,5 @@
-import { getCoreClient } from "./client";
-import { User } from "../types/core";
+import { getCoreClient } from "./client.js";
+import { User } from "../types/core.js";
 
 const toUser = (row: Record<string, unknown>): User => ({
   id: String(row.id),

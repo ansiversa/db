@@ -3,7 +3,7 @@ import {
   AppDatabaseConfigs,
   DatabaseConnectionConfig,
   LoadEnvConfigOptions,
-} from "./types";
+} from "./types.js";
 
 const DEFAULT_CORE_URL_VAR = "ANSIVERSA_CORE_DB_URL";
 const DEFAULT_CORE_AUTH_VAR = "TURSO_AUTH_TOKEN";

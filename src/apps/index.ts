@@ -1,1 +1,1 @@
-export * as Quiz from "./quiz";
+export * as Quiz from "./quiz/index.js";
