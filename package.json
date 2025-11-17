@@ -1,0 +1,30 @@
+{
+  "name": "@ansiversa/db",
+  "version": "0.0.1",
+  "description": "Shared Turso/libSQL database client for Ansiversa apps",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "ansiversa",
+    "turso",
+    "libsql",
+    "database"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@libsql/client": "^0.5.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "typescript": "^5.4.2"
+  }
+}
