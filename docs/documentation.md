@@ -110,6 +110,34 @@ const result = await Apps.Quiz.QuizResults.saveQuizResult({
 });
 ```
 
+### Quiz catalog helpers
+
+Helpers under `Apps.Quiz.Catalog` read from the quiz catalog tables (platforms, subjects, topics, levels, quizzes). Each helper returns strongly typed objects that mirror the table columns.
+
+- `listPlatforms(): Promise<QuizPlatform[]>`
+- `getPlatformById(platformId: string): Promise<QuizPlatform | null>`
+- `listSubjects(options?: { platformId?: string }): Promise<QuizSubject[]>`
+- `getSubjectsByPlatformId(platformId: string): Promise<QuizSubject[]>`
+- `getSubjectById(subjectId: string): Promise<QuizSubject | null>`
+- `listTopics(options?: { subjectId?: string }): Promise<QuizTopic[]>`
+- `getTopicsBySubjectId(subjectId: string): Promise<QuizTopic[]>`
+- `getTopicById(topicId: string): Promise<QuizTopic | null>`
+- `listLevels(options?: { topicId?: string }): Promise<QuizLevel[]>`
+- `getLevelsByTopicId(topicId: string): Promise<QuizLevel[]>`
+- `getLevelById(levelId: string): Promise<QuizLevel | null>`
+- `listQuizzes(options?: { levelId?: string }): Promise<QuizEntry[]>`
+- `getQuizzesByLevelId(levelId: string): Promise<QuizEntry[]>`
+- `getQuizById(quizId: string): Promise<QuizEntry | null>`
+
+```ts
+import { Apps } from "@ansiversa/db";
+
+const subjectList = await Apps.Quiz.Catalog.getSubjectsByPlatformId("platform-1");
+const topicList = await Apps.Quiz.Catalog.getTopicsBySubjectId("subject-2");
+const levelList = await Apps.Quiz.Catalog.getLevelsByTopicId("topic-3");
+const quizList = await Apps.Quiz.Catalog.getQuizzesByLevelId("level-4");
+```
+
 ## Quiz schema helpers
 
 The `QuizTables` exports describe the schema for the quiz mini-app. These are useful for migrations or tests that need to bootstrap tables.
