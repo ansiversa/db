@@ -153,6 +153,9 @@ export const listSubjects = async (options: { platformId?: string } = {}): Promi
   );
 };
 
+export const getSubjectsByPlatformId = async (platformId: string): Promise<QuizSubject[]> =>
+  listSubjects({ platformId });
+
 export const getSubjectById = async (subjectId: string): Promise<QuizSubject | null> =>
   fetchSingle(
     `
@@ -186,6 +189,9 @@ export const listTopics = async (options: { subjectId?: string } = {}): Promise<
     toTopic,
   );
 };
+
+export const getTopicsBySubjectId = async (subjectId: string): Promise<QuizTopic[]> =>
+  listTopics({ subjectId });
 
 export const getTopicById = async (topicId: string): Promise<QuizTopic | null> =>
   fetchSingle(
@@ -221,6 +227,9 @@ export const listLevels = async (options: { topicId?: string } = {}): Promise<Qu
   );
 };
 
+export const getLevelsByTopicId = async (topicId: string): Promise<QuizLevel[]> =>
+  listLevels({ topicId });
+
 export const getLevelById = async (levelId: string): Promise<QuizLevel | null> =>
   fetchSingle(
     `
@@ -254,6 +263,9 @@ export const listQuizzes = async (options: { levelId?: string } = {}): Promise<Q
     toQuizEntry,
   );
 };
+
+export const getQuizzesByLevelId = async (levelId: string): Promise<QuizEntry[]> =>
+  listQuizzes({ levelId });
 
 export const getQuizById = async (quizId: string): Promise<QuizEntry | null> =>
   fetchSingle(
