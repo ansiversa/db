@@ -2,56 +2,77 @@ import type { InArgs } from "@libsql/client";
 
 import { getQuizClient } from "./client.js";
 import { ensureQuizSchema } from "./schema.js";
-import { QuizResult, SaveQuizResultInput } from "../../types/quiz.js";
+import { QuizResult, SaveQuizResultInput, QuizDifficulty } from "../../types/quiz.js";
 
 type Row = Record<string, unknown>;
 
-const toTimestamp = (value: unknown): string => {
-  if (typeof value === "string" && value.length > 0) {
-    return value;
-  }
-  return new Date().toISOString();
+const toDifficulty = (value: unknown): QuizDifficulty => {
+  const normalized = String(value ?? "E").toUpperCase();
+  return normalized === "M" || normalized === "D" ? (normalized as QuizDifficulty) : "E";
 };
 
-const parseMetadata = (value: unknown): Record<string, unknown> | null => {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  if (typeof value === "string" && value.length > 0) {
+const parseJsonObject = (value: unknown): Record<string, unknown> => {
+  if (typeof value === "string" && value.trim().length > 0) {
     try {
-      return JSON.parse(value);
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === "object") {
+        return parsed as Record<string, unknown>;
+      }
     } catch {
-      return null;
+      return {};
     }
   }
-  if (typeof value === "object") {
+
+  if (typeof value === "object" && value !== null) {
     return value as Record<string, unknown>;
   }
-  return null;
+
+  return {};
 };
 
 const toQuizResult = (row: Row): QuizResult => ({
   id: String(row.id),
-  quizId: String(row.quiz_id),
   userId: String(row.user_id),
-  score: Number(row.score),
-  metadata: parseMetadata(row.metadata),
-  createdAt: toTimestamp(row.created_at ?? row.createdAt),
-  updatedAt: toTimestamp(row.updated_at ?? row.updatedAt ?? row.created_at ?? row.createdAt),
+  platformId: String(row.platform_id),
+  subjectId: String(row.subject_id),
+  topicId: String(row.topic_id),
+  roadmapId: String(row.roadmap_id),
+  level: toDifficulty(row.level),
+  responses: parseJsonObject(row.responses),
+  mark: typeof row.mark === "number" ? row.mark : Number(row.mark ?? 0),
+  createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
 });
 
 export const saveQuizResult = async (input: SaveQuizResultInput): Promise<QuizResult> => {
   await ensureQuizSchema();
   const client = getQuizClient();
-  const metadata = input.metadata ? JSON.stringify(input.metadata) : null;
+  const responses = JSON.stringify(input.responses ?? {});
 
   const result = await client.execute({
     sql: `
-      INSERT INTO quiz_results (quiz_id, user_id, score, metadata, created_at, updated_at)
-      VALUES (?, ?, ?, COALESCE(?, json('{}')), datetime('now'), datetime('now'))
-      RETURNING id, quiz_id, user_id, score, metadata, created_at, updated_at
+      INSERT INTO results (
+        user_id,
+        platform_id,
+        subject_id,
+        topic_id,
+        roadmap_id,
+        level,
+        responses,
+        mark
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, 0))
+      RETURNING id, user_id, platform_id, subject_id, topic_id, roadmap_id, level, responses, mark, created_at
     `,
-    args: [input.quizId, input.userId, input.score, metadata],
+    args: [
+      input.userId,
+      input.platformId,
+      input.subjectId,
+      input.topicId,
+      input.roadmapId,
+      input.level,
+      responses,
+      input.mark ?? 0,
+    ],
   });
 
   const row = result.rows?.[0];
@@ -67,8 +88,8 @@ export const getQuizResultById = async (resultId: string): Promise<QuizResult | 
   const client = getQuizClient();
   const result = await client.execute({
     sql: `
-      SELECT id, quiz_id, user_id, score, metadata, created_at, updated_at
-      FROM quiz_results
+      SELECT id, user_id, platform_id, subject_id, topic_id, roadmap_id, level, responses, mark, created_at
+      FROM results
       WHERE id = ?
       LIMIT 1
     `,
@@ -80,8 +101,12 @@ export const getQuizResultById = async (resultId: string): Promise<QuizResult | 
 };
 
 export interface QuizResultFilter {
-  quizId?: string;
   userId?: string;
+  platformId?: string;
+  subjectId?: string;
+  topicId?: string;
+  roadmapId?: string;
+  level?: QuizDifficulty;
 }
 
 export const listQuizResults = async (filter: QuizResultFilter = {}): Promise<QuizResult[]> => {
@@ -89,22 +114,42 @@ export const listQuizResults = async (filter: QuizResultFilter = {}): Promise<Qu
   const clauses: string[] = [];
   const args: InArgs = [];
 
-  if (filter.quizId) {
-    clauses.push("quiz_id = ?");
-    args.push(filter.quizId);
-  }
-
   if (filter.userId) {
     clauses.push("user_id = ?");
     args.push(filter.userId);
+  }
+
+  if (filter.platformId) {
+    clauses.push("platform_id = ?");
+    args.push(filter.platformId);
+  }
+
+  if (filter.subjectId) {
+    clauses.push("subject_id = ?");
+    args.push(filter.subjectId);
+  }
+
+  if (filter.topicId) {
+    clauses.push("topic_id = ?");
+    args.push(filter.topicId);
+  }
+
+  if (filter.roadmapId) {
+    clauses.push("roadmap_id = ?");
+    args.push(filter.roadmapId);
+  }
+
+  if (filter.level) {
+    clauses.push("level = ?");
+    args.push(filter.level);
   }
 
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const client = getQuizClient();
   const result = await client.execute({
     sql: `
-      SELECT id, quiz_id, user_id, score, metadata, created_at, updated_at
-      FROM quiz_results
+      SELECT id, user_id, platform_id, subject_id, topic_id, roadmap_id, level, responses, mark, created_at
+      FROM results
       ${where}
       ORDER BY created_at DESC
     `,

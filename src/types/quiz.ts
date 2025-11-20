@@ -2,71 +2,75 @@ export interface QuizPlatform {
   id: string;
   name: string;
   description?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  isActive: boolean;
+  icon: string;
+  type?: string | null;
+  qCount: number;
 }
 
 export interface QuizSubject {
   id: string;
   platformId: string;
   name: string;
-  description?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  isActive: boolean;
+  qCount: number;
 }
 
 export interface QuizTopic {
   id: string;
+  platformId: string;
   subjectId: string;
   name: string;
-  description?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  isActive: boolean;
+  qCount: number;
 }
 
-export interface QuizLevel {
+export interface QuizRoadmap {
   id: string;
+  platformId: string;
+  subjectId: string;
   topicId: string;
-  levelNumber: number;
   name: string;
-  description?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  isActive: boolean;
+  qCount: number;
 }
+
+export type QuizDifficulty = "E" | "M" | "D";
 
 export interface QuizQuestion {
   id: string;
+  platformId: string;
+  subjectId: string;
+  topicId: string;
+  roadmapId: string;
   prompt: string;
+  options: Record<string, unknown>;
   answer: string;
-  difficulty?: string | null;
-  userId?: string | null;
-  createdAt?: string;
-  quizId?: string | null;
-}
-
-export interface QuizEntry {
-  id: string;
-  levelId: string;
-  title: string;
-  description?: string | null;
-  metadata?: Record<string, unknown> | null;
-  createdAt: string;
-  updatedAt: string;
+  explanation?: string | null;
+  difficulty: QuizDifficulty;
+  isActive: boolean;
 }
 
 export interface QuizResult {
   id: string;
-  quizId: string;
   userId: string;
-  score: number;
-  metadata?: Record<string, unknown> | null;
+  platformId: string;
+  subjectId: string;
+  topicId: string;
+  roadmapId: string;
+  level: QuizDifficulty;
+  responses: Record<string, unknown>;
+  mark: number;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface SaveQuizResultInput {
-  quizId: string;
   userId: string;
-  score: number;
-  metadata?: Record<string, unknown> | null;
+  platformId: string;
+  subjectId: string;
+  topicId: string;
+  roadmapId: string;
+  level: QuizDifficulty;
+  responses: Record<string, unknown>;
+  mark?: number;
 }

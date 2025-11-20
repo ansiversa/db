@@ -2,20 +2,48 @@ import type { InArgs } from "@libsql/client";
 
 import { getQuizClient } from "./client.js";
 import { ensureQuizSchema } from "./schema.js";
-import { QuizQuestion } from "../../types/quiz.js";
+import { QuizQuestion, QuizDifficulty } from "../../types/quiz.js";
+
+const toDifficulty = (value: unknown): QuizDifficulty => {
+  const normalized = String(value ?? "E").toUpperCase();
+  return normalized === "M" || normalized === "D" ? (normalized as QuizDifficulty) : "E";
+};
+
+const parseJsonObject = (value: unknown): Record<string, unknown> => {
+  if (typeof value === "string" && value.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === "object") {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return {};
+    }
+  }
+
+  if (typeof value === "object" && value !== null) {
+    return value as Record<string, unknown>;
+  }
+
+  return {};
+};
 
 const toQuizQuestion = (row: Record<string, unknown>): QuizQuestion => ({
   id: String(row.id),
-  quizId: row.quiz_id === null || row.quiz_id === undefined ? null : String(row.quiz_id),
-  prompt: String(row.prompt),
-  answer: String(row.answer),
-  difficulty: (row.difficulty as string | null | undefined) ?? null,
-  userId: (row.user_id as string | null | undefined) ?? null,
-  createdAt: (row.created_at as string | undefined) ?? (row.createdAt as string | undefined),
+  platformId: String(row.platform_id),
+  subjectId: String(row.subject_id),
+  topicId: String(row.topic_id),
+  roadmapId: String(row.roadmap_id),
+  prompt: String(row.q),
+  options: parseJsonObject(row.o),
+  answer: String(row.a),
+  explanation: typeof row.e === "string" && row.e.trim().length ? row.e : null,
+  difficulty: toDifficulty(row.l),
+  isActive: Boolean(row.is_active),
 });
 
 export const getRandomQuestionsForUser = async (
-  userId: string,
+  _userId: string,
   limit: number,
 ): Promise<QuizQuestion[]> => {
   await ensureQuizSchema();
@@ -24,13 +52,13 @@ export const getRandomQuestionsForUser = async (
 
   const result = await client.execute({
     sql: `
-      SELECT id, quiz_id, prompt, answer, difficulty, user_id, created_at
-      FROM quiz_questions
-      WHERE user_id IS NULL OR user_id = ?
+      SELECT id, platform_id, subject_id, topic_id, roadmap_id, q, o, a, e, l, is_active
+      FROM questions
+      WHERE is_active = 1
       ORDER BY random()
       LIMIT ?
     `,
-    args: [userId, normalizedLimit],
+    args: [normalizedLimit],
   });
 
   return (result.rows ?? []).map(toQuizQuestion);
@@ -38,32 +66,24 @@ export const getRandomQuestionsForUser = async (
 
 export interface QuizQuestionQueryOptions {
   limit?: number;
-  userId?: string;
 }
 
 export const getQuestionsForQuiz = async (
-  quizId: string,
+  roadmapId: string,
   options: QuizQuestionQueryOptions = {},
 ): Promise<QuizQuestion[]> => {
   await ensureQuizSchema();
   const client = getQuizClient();
   const normalizedLimit = Math.max(1, Math.min(options.limit ?? 50, 200));
 
-  const args: InArgs = [quizId];
-  let userClause = "";
-  if (options.userId) {
-    userClause = "AND (user_id IS NULL OR user_id = ?)";
-    args.push(options.userId);
-  }
-
-  args.push(normalizedLimit);
+  const args: InArgs = [roadmapId, normalizedLimit];
 
   const result = await client.execute({
     sql: `
-      SELECT id, quiz_id, prompt, answer, difficulty, user_id, created_at
-      FROM quiz_questions
-      WHERE quiz_id = ?
-      ${userClause}
+      SELECT id, platform_id, subject_id, topic_id, roadmap_id, q, o, a, e, l, is_active
+      FROM questions
+      WHERE roadmap_id = ?
+      AND is_active = 1
       ORDER BY random()
       LIMIT ?
     `,
