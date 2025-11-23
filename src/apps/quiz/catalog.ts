@@ -6,6 +6,7 @@ import {
   QuizPlatform,
   QuizQuestion,
   QuizResult,
+  QuizResultResponseItem,
   QuizRoadmap,
   QuizSubject,
   QuizTopic,
@@ -97,6 +98,21 @@ const parseJsonObject = (value: unknown): Record<string, unknown> => {
   return {};
 };
 
+const parseResponses = (value: unknown): QuizResultResponseItem[] => {
+  if (typeof value === "string" && value.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed as QuizResultResponseItem[];
+      }
+    } catch {
+      return [];
+    }
+  }
+
+  return Array.isArray(value) ? (value as QuizResultResponseItem[]) : [];
+};
+
 const toDifficulty = (value: unknown): QuizDifficulty => {
   const normalized = String(value ?? "E").toUpperCase();
   return normalized === "M" || normalized === "D" ? (normalized as QuizDifficulty) : "E";
@@ -161,7 +177,7 @@ const toResult = (row: Row): QuizResult => ({
   topicId: String(row.topic_id),
   roadmapId: String(row.roadmap_id),
   level: toDifficulty(row.level),
-  responses: parseJsonObject(row.responses),
+  responses: parseResponses(row.responses),
   mark: toNumber(row.mark),
   createdAt: String(row.created_at ?? new Date().toISOString()),
 });
@@ -446,7 +462,16 @@ export const listSubjects = (options: QueryOptions<SubjectFilter> = {}) =>
   });
 
 export const getSubjectsByPlatformId = async (platformId: string): Promise<QuizSubject[]> =>
-  listSubjects({ platformId });
+  runListQuery(
+    `
+      SELECT id, platform_id, name, is_active, q_count
+      FROM subjects
+      WHERE platform_id = ?
+      ORDER BY name
+    `,
+    [platformId] as InArgs,
+    toSubject,
+  );
 
 export const getSubjectById = async (subjectId: string): Promise<QuizSubject | null> =>
   fetchSingle(
@@ -471,7 +496,16 @@ export const listTopics = (options: QueryOptions<TopicFilter> = {}) =>
   });
 
 export const getTopicsBySubjectId = async (subjectId: string): Promise<QuizTopic[]> =>
-  listTopics({ subjectId });
+  runListQuery(
+    `
+      SELECT id, platform_id, subject_id, name, is_active, q_count
+      FROM topics
+      WHERE subject_id = ?
+      ORDER BY name
+    `,
+    [subjectId] as InArgs,
+    toTopic,
+  );
 
 export const getTopicById = async (topicId: string): Promise<QuizTopic | null> =>
   fetchSingle(
@@ -495,32 +529,7 @@ export const listRoadmaps = (options: QueryOptions<RoadmapFilter> = {}) =>
     defaultSort: { column: "name" },
   });
 
-<<<<<<< HEAD
-  if (options.topicId) {
-    clauses.push("topic_id = ?");
-    args.push(options.topicId);
-  }
-
-  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
-  return runListQuery(
-    `
-      SELECT id, topic_id, level_number, name, description, created_at, updated_at
-      FROM levels
-      ${where}
-      ORDER BY level_number ASC
-    `,
-    args,
-    toLevel,
-  );
-};
-
-export const getLevelsByTopicId = async (topicId: string): Promise<QuizLevel[]> =>
-  listLevels({ topicId });
-
-export const getLevelById = async (levelId: string): Promise<QuizLevel | null> =>
-=======
 export const getRoadmapById = async (roadmapId: string): Promise<QuizRoadmap | null> =>
->>>>>>> 5e3bd50 (quiz tables added)
   fetchSingle(
     `
       SELECT id, platform_id, subject_id, topic_id, name, is_active, q_count
@@ -542,32 +551,7 @@ export const listQuestions = (options: QueryOptions<QuestionFilter> = {}) =>
     defaultSort: { column: "id" },
   });
 
-<<<<<<< HEAD
-  if (options.levelId) {
-    clauses.push("level_id = ?");
-    args.push(options.levelId);
-  }
-
-  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
-  return runListQuery(
-    `
-      SELECT id, level_id, title, description, metadata, created_at, updated_at
-      FROM quizzes
-      ${where}
-      ORDER BY created_at DESC
-    `,
-    args,
-    toQuizEntry,
-  );
-};
-
-export const getQuizzesByLevelId = async (levelId: string): Promise<QuizEntry[]> =>
-  listQuizzes({ levelId });
-
-export const getQuizById = async (quizId: string): Promise<QuizEntry | null> =>
-=======
 export const getQuestionById = async (questionId: string): Promise<QuizQuestion | null> =>
->>>>>>> 5e3bd50 (quiz tables added)
   fetchSingle(
     `
       SELECT id, platform_id, subject_id, topic_id, roadmap_id, q, o, a, e, l, is_active

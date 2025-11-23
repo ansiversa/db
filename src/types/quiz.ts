@@ -51,6 +51,13 @@ export interface QuizQuestion {
   isActive: boolean;
 }
 
+export interface QuizResultResponseItem {
+  questionId: string;
+  selectedKey: string;
+  correctKey: string;
+  isCorrect: boolean;
+}
+
 export interface QuizResult {
   id: string;
   userId: string;
@@ -59,7 +66,7 @@ export interface QuizResult {
   topicId: string;
   roadmapId: string;
   level: QuizDifficulty;
-  responses: Record<string, unknown>;
+  responses: QuizResultResponseItem[];
   mark: number;
   createdAt: string;
 }
@@ -71,6 +78,6 @@ export interface SaveQuizResultInput {
   topicId: string;
   roadmapId: string;
   level: QuizDifficulty;
-  responses: Record<string, unknown>;
+  responses: QuizResultResponseItem[];
   mark?: number;
 }

@@ -89,7 +89,7 @@ Creates (lazily) and returns the quiz database client. Throws an error if the qu
 Clears the cached quiz client. Use in tests that reconfigure the database between runs.
 
 ### `QuizQuestions.getRandomQuestionsForUser(userId: string, limit: number): Promise<QuizQuestion[]>`
-Returns up to `limit` random quiz questions that are either global (`user_id IS NULL`) or assigned to the provided user. The limit is clamped to the range 1–100 to avoid excessive queries.
+Returns up to `limit` random active questions. The `userId` argument is reserved for future personalization logic; today the selection is global. The limit is clamped to the range 1–100 to avoid excessive queries.
 
 ```ts
 import { Apps } from "@ansiversa/db";
@@ -99,42 +99,55 @@ const [first] = questions;
 ```
 
 ### `QuizResults.saveQuizResult(input: SaveQuizResultInput): Promise<QuizResult>`
-Inserts a quiz result row with the provided user/question IDs, correctness flag, and optional JSON metadata. Returns the inserted record as a strongly typed object. Throws if insertion fails.
+Inserts a quiz result row with the provided user/platform hierarchy, difficulty, structured responses, and optional mark. Returns the inserted record as a strongly typed object. Throws if insertion fails.
 
 ```ts
+const [firstQuestion] = await Apps.Quiz.QuizQuestions.getRandomQuestionsForUser("user-123", 1);
+
 const result = await Apps.Quiz.QuizResults.saveQuizResult({
   userId: "user-123",
-  questionId: "question-456",
-  isCorrect: true,
-  metadata: { attempt: 1 },
+  platformId: firstQuestion.platformId,
+  subjectId: firstQuestion.subjectId,
+  topicId: firstQuestion.topicId,
+  roadmapId: firstQuestion.roadmapId,
+  level: firstQuestion.difficulty,
+  responses: [
+    {
+      questionId: firstQuestion.id,
+      selectedKey: "A",
+      correctKey: firstQuestion.answer,
+      isCorrect: firstQuestion.answer === "A",
+    },
+  ],
+  mark: firstQuestion.answer === "A" ? 1 : 0,
 });
 ```
 
 ### Quiz catalog helpers
 
-Helpers under `Apps.Quiz.Catalog` read from the quiz catalog tables (platforms, subjects, topics, levels, quizzes). Each helper returns strongly typed objects that mirror the table columns.
+Helpers under `Apps.Quiz.Catalog` read from the quiz catalog tables (platforms, subjects, topics, roadmaps, questions, results). Each helper returns strongly typed objects that mirror the table columns.
 
-- `listPlatforms(): Promise<QuizPlatform[]>`
+- `listPlatforms(options?: QueryOptions<PlatformFilter>): Promise<PaginatedResult<QuizPlatform>>`
 - `getPlatformById(platformId: string): Promise<QuizPlatform | null>`
-- `listSubjects(options?: { platformId?: string }): Promise<QuizSubject[]>`
+- `listSubjects(options?: QueryOptions<SubjectFilter>): Promise<PaginatedResult<QuizSubject>>`
 - `getSubjectsByPlatformId(platformId: string): Promise<QuizSubject[]>`
 - `getSubjectById(subjectId: string): Promise<QuizSubject | null>`
-- `listTopics(options?: { subjectId?: string }): Promise<QuizTopic[]>`
+- `listTopics(options?: QueryOptions<TopicFilter>): Promise<PaginatedResult<QuizTopic>>`
 - `getTopicsBySubjectId(subjectId: string): Promise<QuizTopic[]>`
 - `getTopicById(topicId: string): Promise<QuizTopic | null>`
-- `listLevels(options?: { topicId?: string }): Promise<QuizLevel[]>`
-- `getLevelsByTopicId(topicId: string): Promise<QuizLevel[]>`
-- `getLevelById(levelId: string): Promise<QuizLevel | null>`
-- `listQuizzes(options?: { levelId?: string }): Promise<QuizEntry[]>`
-- `getQuizzesByLevelId(levelId: string): Promise<QuizEntry[]>`
-- `getQuizById(quizId: string): Promise<QuizEntry | null>`
+- `listRoadmaps(options?: QueryOptions<RoadmapFilter>): Promise<PaginatedResult<QuizRoadmap>>`
+- `getRoadmapById(roadmapId: string): Promise<QuizRoadmap | null>`
+- `listQuestions(options?: QueryOptions<QuestionFilter>): Promise<PaginatedResult<QuizQuestion>>`
+- `getQuestionById(questionId: string): Promise<QuizQuestion | null>`
+- `listResults(options?: QueryOptions<ResultFilter>): Promise<PaginatedResult<QuizResult>>`
+- `getResultById(resultId: string): Promise<QuizResult | null>`
 
 ```ts
 import { Apps } from "@ansiversa/db";
 
 const subjectList = await Apps.Quiz.Catalog.getSubjectsByPlatformId("platform-1");
 const topicList = await Apps.Quiz.Catalog.getTopicsBySubjectId("subject-2");
-const levelList = await Apps.Quiz.Catalog.getLevelsByTopicId("topic-3");
+const questions = await Apps.Quiz.Catalog.listQuestions({ filters: { roadmapId: "roadmap-4" } });
 const quizList = await Apps.Quiz.Catalog.getQuizzesByLevelId("level-4");
 ```
 

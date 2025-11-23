@@ -42,6 +42,7 @@ const toQuizQuestion = (row: Record<string, unknown>): QuizQuestion => ({
   isActive: Boolean(row.is_active),
 });
 
+// `_userId` is reserved for future personalization logic (e.g., spaced repetition or adaptive difficulty).
 export const getRandomQuestionsForUser = async (
   _userId: string,
   limit: number,

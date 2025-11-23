@@ -55,8 +55,20 @@ const firstQuestion = questions[0];
 
 await Apps.Quiz.QuizResults.saveQuizResult({
   userId: maybeUser!.id,
-  questionId: firstQuestion.id,
-  isCorrect: true,
+  platformId: firstQuestion.platformId,
+  subjectId: firstQuestion.subjectId,
+  topicId: firstQuestion.topicId,
+  roadmapId: firstQuestion.roadmapId,
+  level: firstQuestion.difficulty,
+  responses: [
+    {
+      questionId: firstQuestion.id,
+      selectedKey: "A",
+      correctKey: firstQuestion.answer,
+      isCorrect: firstQuestion.answer === "A",
+    },
+  ],
+  mark: firstQuestion.answer === "A" ? 1 : 0,
 });
 ```
 

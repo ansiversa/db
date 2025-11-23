@@ -1,116 +1,102 @@
-# Quiz Tables – Ansiversa DB  
-> File: `core/db/quiz/tables.ts`  
+# Quiz Tables – Ansiversa DB (Current Schema)
+> Source: `src/core/db/quiz/tables.ts`
 
-## Overview  
-This document outlines the table definitions for the “Quiz” module of the **Ansiversa** ecosystem. It captures the database schema for platforms, subjects, topics, quiz levels, quizzes, results, and related join tables.
+This document mirrors the quiz database schema that is currently implemented in the codebase. The quiz module uses a 6-table, SQLite/libSQL-friendly layout and keeps IDs as integers in the database while exposing them as strings in TypeScript.
 
 ---
 
 ## Table Definitions
 
-### 1. `platforms`  
-| Column       | Type              | Description                        |
-|--------------|-------------------|------------------------------------|
-| `id`         | `serial` or `bigserial` | Primary key – auto-generated ID |
-| `name`       | `varchar`         | Name of the platform (e.g., School, Medical) |
-| `description`| `text`            | Optional description of the platform |
-| `created_at` | `timestamp`       | Record creation timestamp          |
-| `updated_at` | `timestamp`       | Last update timestamp              |
+### 1. `platforms`
+| Column       | Type                          | Notes                                                     |
+|--------------|-------------------------------|-----------------------------------------------------------|
+| `id`         | `INTEGER PRIMARY KEY AUTOINCREMENT` | Auto-generated platform identifier                        |
+| `name`       | `TEXT NOT NULL`               | Platform name (e.g., School, Medical)                     |
+| `description`| `TEXT`                        | Optional description                                      |
+| `is_active`  | `INTEGER NOT NULL DEFAULT 1`  | 1 = active, 0 = inactive                                  |
+| `icon`       | `TEXT NOT NULL`               | Icon key or URL                                           |
+| `type`       | `TEXT`                        | Optional platform type/label                              |
+| `q_count`    | `INTEGER NOT NULL DEFAULT 0`  | Denormalized question count (see Notes)                   |
+
+### 2. `subjects`
+| Column        | Type                    | Notes                                                                 |
+|---------------|-------------------------|-----------------------------------------------------------------------|
+| `id`          | `INTEGER PRIMARY KEY`   | **Externally managed** subject ID (supply on insert)                  |
+| `platform_id` | `INTEGER NOT NULL`      | FK → `platforms.id` (CASCADE)                                         |
+| `name`        | `TEXT NOT NULL`         | Subject name                                                          |
+| `is_active`   | `INTEGER NOT NULL DEFAULT 1` | Active flag                                                      |
+| `q_count`     | `INTEGER NOT NULL DEFAULT 0`  | Denormalized question count                                      |
+
+### 3. `topics`
+| Column        | Type                    | Notes                                                                 |
+|---------------|-------------------------|-----------------------------------------------------------------------|
+| `id`          | `INTEGER PRIMARY KEY`   | **Externally managed** topic ID (supply on insert)                    |
+| `platform_id` | `INTEGER NOT NULL`      | FK → `platforms.id` (CASCADE)                                         |
+| `subject_id`  | `INTEGER NOT NULL`      | FK → `subjects.id` (CASCADE)                                          |
+| `name`        | `TEXT NOT NULL`         | Topic name                                                            |
+| `is_active`   | `INTEGER NOT NULL DEFAULT 1` | Active flag                                                      |
+| `q_count`     | `INTEGER NOT NULL DEFAULT 0`  | Denormalized question count                                      |
+
+### 4. `roadmaps`
+| Column        | Type                    | Notes                                                                 |
+|---------------|-------------------------|-----------------------------------------------------------------------|
+| `id`          | `INTEGER PRIMARY KEY`   | **Externally managed** roadmap ID (supply on insert)                  |
+| `platform_id` | `INTEGER NOT NULL`      | FK → `platforms.id` (CASCADE)                                         |
+| `subject_id`  | `INTEGER NOT NULL`      | FK → `subjects.id` (CASCADE)                                          |
+| `topic_id`    | `INTEGER NOT NULL`      | FK → `topics.id` (CASCADE)                                            |
+| `name`        | `TEXT NOT NULL`         | Roadmap name                                                          |
+| `is_active`   | `INTEGER NOT NULL DEFAULT 1` | Active flag                                                      |
+| `q_count`     | `INTEGER NOT NULL DEFAULT 0`  | Denormalized question count                                      |
+
+### 5. `questions`
+| Column        | Type                          | Notes                                                         |
+|---------------|-------------------------------|---------------------------------------------------------------|
+| `id`          | `INTEGER PRIMARY KEY AUTOINCREMENT` | Auto-generated question ID                                |
+| `platform_id` | `INTEGER NOT NULL`            | FK → `platforms.id` (CASCADE)                                 |
+| `subject_id`  | `INTEGER NOT NULL`            | FK → `subjects.id` (CASCADE)                                  |
+| `topic_id`    | `INTEGER NOT NULL`            | FK → `topics.id` (CASCADE)                                    |
+| `roadmap_id`  | `INTEGER NOT NULL`            | FK → `roadmaps.id` (CASCADE)                                  |
+| `q`           | `TEXT NOT NULL`               | Question prompt                                               |
+| `o`           | `JSON NOT NULL`               | Answer options object                                         |
+| `a`           | `TEXT NOT NULL`               | Correct answer key                                            |
+| `e`           | `TEXT`                        | Optional explanation                                          |
+| `l`           | `TEXT NOT NULL CHECK (l IN ('E','M','D'))` | Difficulty level (E, M, D)                         |
+| `is_active`   | `INTEGER NOT NULL DEFAULT 1`  | Active flag                                                   |
+
+### 6. `results`
+| Column        | Type                                     | Notes                                                                    |
+|---------------|------------------------------------------|--------------------------------------------------------------------------|
+| `id`          | `INTEGER PRIMARY KEY AUTOINCREMENT`      | Auto-generated result ID                                                 |
+| `user_id`     | `TEXT NOT NULL`                          | User identifier                                                          |
+| `platform_id` | `INTEGER NOT NULL`                       | FK → `platforms.id` (CASCADE)                                            |
+| `subject_id`  | `INTEGER NOT NULL`                       | FK → `subjects.id` (CASCADE)                                             |
+| `topic_id`    | `INTEGER NOT NULL`                       | FK → `topics.id` (CASCADE)                                               |
+| `roadmap_id`  | `INTEGER NOT NULL`                       | FK → `roadmaps.id` (CASCADE)                                             |
+| `level`       | `TEXT NOT NULL CHECK (level IN ('E','M','D'))` | Difficulty snapshot at attempt time                                 |
+| `responses`   | `JSON NOT NULL`                          | Serialized `QuizResultResponseItem[]` (see below)                        |
+| `mark`        | `INTEGER NOT NULL DEFAULT 0`             | Score/mark for the attempt                                               |
+| `created_at`  | `TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP`| Timestamp (ISO string)                                                   |
 
 ---
 
-### 2. `subjects`  
-| Column         | Type              | Description                              |
-|----------------|-------------------|------------------------------------------|
-| `id`           | `serial` or `bigserial` | Primary key                        |
-| `platform_id`  | `int`             | Foreign key to `platforms.id`           |
-| `name`         | `varchar`         | Name of the subject                     |
-| `description`  | `text`            | Optional description                     |
-| `created_at`   | `timestamp`       | Record creation timestamp                |
-| `updated_at`   | `timestamp`       | Last update timestamp                    |
+## Notes & Conventions
+- IDs are stored as integers in the database and surfaced as strings in TypeScript APIs.
+- `subjects`, `topics`, and `roadmaps` require caller-provided IDs; plan seed/import flows accordingly.
+- `q_count` fields are denormalized counts. They should be updated via explicit maintenance logic or a future trigger/sync job.
+- Foreign keys cascade on update/delete to keep the hierarchy consistent.
+- `level` and question `l` columns are limited to `E`, `M`, `D`.
+- Indexes exist on all FK columns for lookup speed.
 
----
+### Result Responses Payload
+Quiz attempt responses are persisted as an array with the following shape:
 
-### 3. `topics`  
-| Column         | Type              | Description                              |
-|----------------|-------------------|------------------------------------------|
-| `id`           | `serial` or `bigserial` | Primary key                        |
-| `subject_id`   | `int`             | Foreign key to `subjects.id`            |
-| `name`         | `varchar`         | Name of the topic                       |
-| `description`  | `text`            | Optional description                     |
-| `created_at`   | `timestamp`       | Record creation timestamp                |
-| `updated_at`   | `timestamp`       | Last update timestamp                    |
+```ts
+interface QuizResultResponseItem {
+  questionId: string;
+  selectedKey: string; // e.g., "A", "B", "C", "D"
+  correctKey: string;  // snapshot of the correct answer at attempt time
+  isCorrect: boolean;
+}
+```
 
----
-
-### 4. `levels`  
-| Column         | Type              | Description                               |
-|----------------|-------------------|-------------------------------------------|
-| `id`           | `serial` or `bigserial` | Primary key                        |
-| `topic_id`     | `int`             | Foreign key to `topics.id`               |
-| `level_number` | `int`             | Numeric identifier of the level (e.g., 1, 2, 3) |
-| `name`         | `varchar`         | Name or label for this level             |
-| `description`  | `text`            | Optional description                      |
-| `created_at`   | `timestamp`       | Record creation timestamp                 |
-| `updated_at`   | `timestamp`       | Last update timestamp                     |
-
----
-
-### 5. `quizzes`  
-| Column         | Type              | Description                                 |
-|----------------|-------------------|---------------------------------------------|
-| `id`           | `serial` or `bigserial` | Primary key                            |
-| `level_id`     | `int`             | Foreign key to `levels.id`                  |
-| `title`        | `varchar`         | Title of the quiz                            |
-| `description`  | `text`            | Optional description of the quiz              |
-| `metadata`     | `jsonb` or `json` | Additional metadata (question count, time limit, etc.) |
-| `created_at`   | `timestamp`       | Record creation timestamp                     |
-| `updated_at`   | `timestamp`       | Last update timestamp                         |
-
----
-
-### 6. `quiz_results`  
-| Column         | Type              | Description                                    |
-|----------------|-------------------|------------------------------------------------|
-| `id`           | `serial` or `bigserial` | Primary key                               |
-| `quiz_id`      | `int`             | Foreign key to `quizzes.id`                   |
-| `user_id`      | `int`             | FK to users table (assuming a `users` table exists) |
-| `score`        | `numeric` or `int`| Score achieved by the user                     |
-| `metadata`     | `jsonb` or `json` | Additional result metadata (time taken, answers, etc.) |
-| `created_at`   | `timestamp`       | Record creation timestamp                      |
-| `updated_at`   | `timestamp`       | Last update timestamp                          |
-
----
-
-### 7. (Optional) Join Tables  
-Depending on your use-case (tags, topic-quiz mapping outside of one topic-one quiz), you might have join tables like:  
-- `quiz_tags` (quiz_id → tag_id)  
-- `topic_subjects` (topic_id → subject_id) — if many-to-many  
-- etc.
-
----
-
-## Notes & Conventions  
-- IDs use auto-generated serial/bigserial primary keys.  
-- All tables include `created_at` / `updated_at` timestamps for auditing.  
-- Foreign keys follow the naming pattern `<referenced_table>_id`.  
-- Use `jsonb`/`json` for flexible metadata storage where appropriate (e.g., in `quizzes.metadata`).  
-- Ensure referential integrity via foreign key constraints (cascade or restrict based on your logic).  
-- Index foreign key columns for performance.  
-- For the `platforms` → `subjects` → `topics` → `levels` hierarchical flow, make sure that delete/update cascades (or protections) are well defined to avoid orphan records.
-
----
-
-## Future Considerations  
-- Add archival/deprecation status (e.g., `is_active`, `archived_at`).  
-- Versioning of quizzes (if you will update quizzes over time and keep history).  
-- Localization: multilingual support for `title`, `description`.  
-- Analytics: track user performance trends, average score per quiz/level.  
-- Support for subscription features or premium content within the quiz flow (given your app model).  
-
----
-
-## File Reference  
-```typescript
-// File: core/db/quiz/tables.ts
-// (Contains TypeScript/SQL-schema definitions for the above tables)
+Store this array in the `responses` column (it is JSON serialized internally).

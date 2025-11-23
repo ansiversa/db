@@ -260,6 +260,8 @@ export async function getRandomQuestionsForUser(userId: string, limit: number) {
 export async function saveQuizResult(payload: SaveQuizResultInput) { /* ... */ }
 ```
 
+`SaveQuizResultInput` currently expects the full platform/subject/topic/roadmap hierarchy, a difficulty level, a `responses` array of `{ questionId, selectedKey, correctKey, isCorrect }`, and an optional `mark`.
+
 **Important:** All miniâ€‘app queries must include **`user_id`** to keep data tied to the parent user.
 
 ### 6.4. Export surface (what index.ts should export)
