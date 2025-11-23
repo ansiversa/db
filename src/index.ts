@@ -9,4 +9,5 @@ export {
 export * as Core from "./core/index.js";
 export * as Apps from "./apps/index.js";
 export * as QuizTables from "./core/db/quiz/tables.js";
+export * as CoreTables from "./core/db/core/tables.js";
 export * from "./types/index.js";
