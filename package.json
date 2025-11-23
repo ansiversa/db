@@ -1,6 +1,6 @@
 {
   "name": "@ansiversa/db",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Shared Turso/libSQL database client for Ansiversa apps",
   "type": "module",
   "main": "dist/index.js",
