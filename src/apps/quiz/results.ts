@@ -2,7 +2,12 @@ import type { InArgs } from "@libsql/client";
 
 import { getQuizClient } from "./client.js";
 import { ensureQuizSchema } from "./schema.js";
-import { QuizResult, SaveQuizResultInput, QuizDifficulty } from "../../types/quiz.js";
+import {
+  QuizResult,
+  SaveQuizResultInput,
+  QuizDifficulty,
+  QuizResultResponseItem,
+} from "../../types/quiz.js";
 
 type Row = Record<string, unknown>;
 
@@ -11,23 +16,44 @@ const toDifficulty = (value: unknown): QuizDifficulty => {
   return normalized === "M" || normalized === "D" ? (normalized as QuizDifficulty) : "E";
 };
 
-const parseJsonObject = (value: unknown): Record<string, unknown> => {
+const parseResponses = (value: unknown): QuizResultResponseItem[] => {
+  const normalizeItem = (item: Record<string, unknown>): QuizResultResponseItem | null => {
+    const questionId = item.questionId ?? item.question_id;
+    const selectedKey = item.selectedKey ?? item.selected_key;
+    const correctKey = item.correctKey ?? item.correct_key;
+
+    if (!questionId || !selectedKey || !correctKey || typeof item.isCorrect !== "boolean") {
+      return null;
+    }
+
+    return {
+      questionId: String(questionId),
+      selectedKey: String(selectedKey),
+      correctKey: String(correctKey),
+      isCorrect: Boolean(item.isCorrect),
+    };
+  };
+
   if (typeof value === "string" && value.trim().length > 0) {
     try {
       const parsed = JSON.parse(value);
-      if (parsed && typeof parsed === "object") {
-        return parsed as Record<string, unknown>;
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => (item && typeof item === "object" ? normalizeItem(item as Record<string, unknown>) : null))
+          .filter((item): item is QuizResultResponseItem => item !== null);
       }
     } catch {
-      return {};
+      return [];
     }
   }
 
-  if (typeof value === "object" && value !== null) {
-    return value as Record<string, unknown>;
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (item && typeof item === "object" ? normalizeItem(item as Record<string, unknown>) : null))
+      .filter((item): item is QuizResultResponseItem => item !== null);
   }
 
-  return {};
+  return [];
 };
 
 const toQuizResult = (row: Row): QuizResult => ({
@@ -38,7 +64,7 @@ const toQuizResult = (row: Row): QuizResult => ({
   topicId: String(row.topic_id),
   roadmapId: String(row.roadmap_id),
   level: toDifficulty(row.level),
-  responses: parseJsonObject(row.responses),
+  responses: parseResponses(row.responses),
   mark: typeof row.mark === "number" ? row.mark : Number(row.mark ?? 0),
   createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
 });
@@ -46,7 +72,7 @@ const toQuizResult = (row: Row): QuizResult => ({
 export const saveQuizResult = async (input: SaveQuizResultInput): Promise<QuizResult> => {
   await ensureQuizSchema();
   const client = getQuizClient();
-  const responses = JSON.stringify(input.responses ?? {});
+  const responses = JSON.stringify(input.responses ?? []);
 
   const result = await client.execute({
     sql: `
