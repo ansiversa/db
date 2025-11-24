@@ -6,12 +6,15 @@ export interface User {
   updatedAt?: string;
 }
 
-export type SubscriptionStatus = "active" | "canceled" | "trialing" | "past_due";
+export type SubscriptionStatus = "active" | "cancelled" | "expired";
 
 export interface Subscription {
-  id: string;
+  id: number;
   userId: string;
   plan: string;
   status: SubscriptionStatus;
-  currentPeriodEnd?: string;
+  periodStart?: string;
+  periodEnd?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

@@ -3,11 +3,14 @@ import { ensureCoreSchema } from "./schema.js";
 import { Subscription, SubscriptionStatus } from "../types/core.js";
 
 const toSubscription = (row: Record<string, unknown>): Subscription => ({
-  id: String(row.id),
+  id: typeof row.id === "number" ? row.id : Number(row.id ?? 0),
   userId: String(row.user_id),
   plan: String(row.plan),
   status: row.status as SubscriptionStatus,
-  currentPeriodEnd: (row.current_period_end as string | undefined | null) ?? undefined,
+  periodStart: (row.period_start as string | undefined | null) ?? undefined,
+  periodEnd: (row.period_end as string | undefined | null) ?? undefined,
+  createdAt: (row.created_at as string | undefined | null) ?? undefined,
+  updatedAt: (row.updated_at as string | undefined | null) ?? undefined,
 });
 
 export const getSubscriptionsForUser = async (userId: string): Promise<Subscription[]> => {
@@ -15,7 +18,7 @@ export const getSubscriptionsForUser = async (userId: string): Promise<Subscript
   const client = getCoreClient();
   const result = await client.execute({
     sql: `
-      SELECT id, user_id, plan, status, current_period_end
+      SELECT id, user_id, plan, status, period_start, period_end, created_at, updated_at
       FROM subscriptions
       WHERE user_id = ?
       ORDER BY created_at DESC
@@ -33,7 +36,7 @@ export const getActiveSubscriptionForUser = async (
   const client = getCoreClient();
   const result = await client.execute({
     sql: `
-      SELECT id, user_id, plan, status, current_period_end
+      SELECT id, user_id, plan, status, period_start, period_end, created_at, updated_at
       FROM subscriptions
       WHERE user_id = ?
       AND status = 'active'
@@ -48,27 +51,21 @@ export const getActiveSubscriptionForUser = async (
 };
 
 export const createSubscription = async (input: {
-  id: string;
   userId: string;
   plan: string;
   status: SubscriptionStatus;
-  currentPeriodEnd?: string;
+  periodStart?: string;
+  periodEnd?: string;
 }): Promise<Subscription> => {
   await ensureCoreSchema();
   const client = getCoreClient();
   const result = await client.execute({
     sql: `
-      INSERT INTO subscriptions (id, user_id, plan, status, current_period_end)
+      INSERT INTO subscriptions (user_id, plan, status, period_start, period_end)
       VALUES (?, ?, ?, ?, ?)
-      RETURNING id, user_id, plan, status, current_period_end
+      RETURNING id, user_id, plan, status, period_start, period_end, created_at, updated_at
     `,
-    args: [
-      input.id,
-      input.userId,
-      input.plan,
-      input.status,
-      input.currentPeriodEnd ?? null,
-    ],
+    args: [input.userId, input.plan, input.status, input.periodStart ?? null, input.periodEnd ?? null],
   });
 
   const row = result.rows?.[0];
@@ -79,9 +76,10 @@ export const createSubscription = async (input: {
 };
 
 export const updateSubscriptionStatus = async (input: {
-  id: string;
+  id: number;
   status: SubscriptionStatus;
-  currentPeriodEnd?: string;
+  periodStart?: string;
+  periodEnd?: string;
 }): Promise<Subscription | null> => {
   await ensureCoreSchema();
   const client = getCoreClient();
@@ -89,12 +87,13 @@ export const updateSubscriptionStatus = async (input: {
     sql: `
       UPDATE subscriptions
       SET status = ?,
-          current_period_end = COALESCE(?, current_period_end),
+          period_start = COALESCE(?, period_start),
+          period_end = COALESCE(?, period_end),
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-      RETURNING id, user_id, plan, status, current_period_end
+      RETURNING id, user_id, plan, status, period_start, period_end, created_at, updated_at
     `,
-    args: [input.status, input.currentPeriodEnd ?? null, input.id],
+    args: [input.status, input.periodStart ?? null, input.periodEnd ?? null, input.id],
   });
 
   const row = result.rows?.[0];

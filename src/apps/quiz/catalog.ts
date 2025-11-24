@@ -12,6 +12,7 @@ import {
   QuizTopic,
   QuizDifficulty,
 } from "../../types/quiz.js";
+import { quizTableOperationMap } from "../../core/db/quiz/tables.js";
 
 type Row = Record<string, unknown>;
 
@@ -79,6 +80,13 @@ const toBoolean = (value: unknown): boolean => {
     return normalized === "true" || normalized === "1";
   }
   return false;
+};
+
+const toBooleanFlag = (value: unknown): boolean => toBoolean(value ?? false);
+
+const toBooleanInt = (value: unknown): number | null => {
+  if (value === null || value === undefined) return null;
+  return toBoolean(value) ? 1 : 0;
 };
 
 const parseJsonObject = (value: unknown): Record<string, unknown> => {
@@ -166,7 +174,7 @@ const toQuestion = (row: Row): QuizQuestion => ({
   answer: String(row.a),
   explanation: toNullableString(row.e),
   difficulty: toDifficulty(row.l),
-  isActive: toBoolean(row.is_active),
+  isActive: toBooleanFlag(row.is_active),
 });
 
 const toResult = (row: Row): QuizResult => ({
@@ -225,6 +233,46 @@ const fetchSingle = async <T>(
   const row = result.rows?.[0];
   return row ? mapper(row) : null;
 };
+
+const runReturningMutation = async <T>(
+  sql: string,
+  args: InArgs,
+  mapper: (row: Row) => T,
+  errorMessage: string,
+): Promise<T> => {
+  await ensureQuizSchema();
+  const client = getQuizClient();
+  const result = await client.execute({ sql, args });
+  const row = result.rows?.[0];
+  if (!row) {
+    throw new Error(errorMessage);
+  }
+  return mapper(row as Row);
+};
+
+const runDelete = async (sql: string, args: InArgs): Promise<boolean> => {
+  await ensureQuizSchema();
+  const client = getQuizClient();
+  const result = await client.execute({ sql, args });
+  return typeof result.rowsAffected === "number" ? result.rowsAffected > 0 : true;
+};
+
+type OperationKey = "insert" | "update" | "delete";
+
+const requireOperation = (
+  table: keyof typeof quizTableOperationMap,
+  operation: OperationKey,
+): string => {
+  const tableOperations = quizTableOperationMap[table];
+  const statement = tableOperations?.[operation];
+  if (!statement) {
+    throw new Error(`Missing ${String(operation)} statement for ${String(table)} table.`);
+  }
+  return statement;
+};
+
+const toNumericId = (value: number | string): number =>
+  typeof value === "number" ? value : Number(value);
 
 const buildFilterClause = (filters: Record<string, unknown> | undefined, columnMap: ColumnMap) => {
   const clauses: string[] = [];
@@ -429,6 +477,52 @@ export type ResultFilter = {
   level?: QuizDifficulty;
 };
 
+type WithIdentifier = { id: number | string };
+
+export type CreatePlatformInput = {
+  name: string;
+  description?: string | null;
+  isActive?: boolean;
+  icon: string;
+  type?: string | null;
+  qCount?: number;
+};
+
+export type UpdatePlatformInput = Partial<CreatePlatformInput> & WithIdentifier;
+
+export type CreateSubjectInput = {
+  id: number;
+  platformId: number | string;
+  name: string;
+  isActive?: boolean;
+  qCount?: number;
+};
+
+export type UpdateSubjectInput = Partial<CreateSubjectInput> & WithIdentifier;
+
+export type CreateTopicInput = {
+  id: number;
+  platformId: number | string;
+  subjectId: number | string;
+  name: string;
+  isActive?: boolean;
+  qCount?: number;
+};
+
+export type UpdateTopicInput = Partial<CreateTopicInput> & WithIdentifier;
+
+export type CreateRoadmapInput = {
+  id: number;
+  platformId: number | string;
+  subjectId: number | string;
+  topicId: number | string;
+  name: string;
+  isActive?: boolean;
+  qCount?: number;
+};
+
+export type UpdateRoadmapInput = Partial<CreateRoadmapInput> & WithIdentifier;
+
 export const listPlatforms = (options: QueryOptions<PlatformFilter> = {}) =>
   runPaginatedQuery<QuizPlatform, PlatformFilter>({
     table: "platforms",
@@ -450,6 +544,40 @@ export const getPlatformById = async (platformId: string): Promise<QuizPlatform 
     [platformId] as InArgs,
     toPlatform,
   );
+
+export const createPlatform = async (input: CreatePlatformInput): Promise<QuizPlatform> =>
+  runReturningMutation(
+    requireOperation("platforms", "insert"),
+    [
+      input.name,
+      input.description ?? null,
+      toBooleanInt(input.isActive),
+      input.icon,
+      input.type ?? null,
+      input.qCount ?? null,
+    ] as InArgs,
+    toPlatform,
+    "Failed to create platform.",
+  );
+
+export const updatePlatform = async (input: UpdatePlatformInput): Promise<QuizPlatform> =>
+  runReturningMutation(
+    requireOperation("platforms", "update"),
+    [
+      input.name ?? null,
+      input.description ?? null,
+      toBooleanInt(input.isActive),
+      input.icon ?? null,
+      input.type ?? null,
+      input.qCount ?? null,
+      input.id,
+    ] as InArgs,
+    toPlatform,
+    "Failed to update platform.",
+  );
+
+export const deletePlatform = async (platformId: number | string): Promise<boolean> =>
+  runDelete(requireOperation("platforms", "delete"), [platformId] as InArgs);
 
 export const listSubjects = (options: QueryOptions<SubjectFilter> = {}) =>
   runPaginatedQuery<QuizSubject, SubjectFilter>({
@@ -485,6 +613,37 @@ export const getSubjectById = async (subjectId: string): Promise<QuizSubject | n
     toSubject,
   );
 
+export const createSubject = async (input: CreateSubjectInput): Promise<QuizSubject> =>
+  runReturningMutation(
+    requireOperation("subjects", "insert"),
+    [
+      toNumericId(input.id),
+      toNumericId(input.platformId),
+      input.name,
+      toBooleanInt(input.isActive),
+      input.qCount ?? null,
+    ] as InArgs,
+    toSubject,
+    "Failed to create subject.",
+  );
+
+export const updateSubject = async (input: UpdateSubjectInput): Promise<QuizSubject> =>
+  runReturningMutation(
+    requireOperation("subjects", "update"),
+    [
+      input.platformId !== undefined ? toNumericId(input.platformId) : null,
+      input.name ?? null,
+      toBooleanInt(input.isActive),
+      input.qCount ?? null,
+      toNumericId(input.id),
+    ] as InArgs,
+    toSubject,
+    "Failed to update subject.",
+  );
+
+export const deleteSubject = async (subjectId: number | string): Promise<boolean> =>
+  runDelete(requireOperation("subjects", "delete"), [subjectId] as InArgs);
+
 export const listTopics = (options: QueryOptions<TopicFilter> = {}) =>
   runPaginatedQuery<QuizTopic, TopicFilter>({
     table: "topics",
@@ -519,6 +678,39 @@ export const getTopicById = async (topicId: string): Promise<QuizTopic | null> =
     toTopic,
   );
 
+export const createTopic = async (input: CreateTopicInput): Promise<QuizTopic> =>
+  runReturningMutation(
+    requireOperation("topics", "insert"),
+    [
+      toNumericId(input.id),
+      toNumericId(input.platformId),
+      toNumericId(input.subjectId),
+      input.name,
+      toBooleanInt(input.isActive),
+      input.qCount ?? null,
+    ] as InArgs,
+    toTopic,
+    "Failed to create topic.",
+  );
+
+export const updateTopic = async (input: UpdateTopicInput): Promise<QuizTopic> =>
+  runReturningMutation(
+    requireOperation("topics", "update"),
+    [
+      input.platformId !== undefined ? toNumericId(input.platformId) : null,
+      input.subjectId !== undefined ? toNumericId(input.subjectId) : null,
+      input.name ?? null,
+      toBooleanInt(input.isActive),
+      input.qCount ?? null,
+      toNumericId(input.id),
+    ] as InArgs,
+    toTopic,
+    "Failed to update topic.",
+  );
+
+export const deleteTopic = async (topicId: number | string): Promise<boolean> =>
+  runDelete(requireOperation("topics", "delete"), [topicId] as InArgs);
+
 export const listRoadmaps = (options: QueryOptions<RoadmapFilter> = {}) =>
   runPaginatedQuery<QuizRoadmap, RoadmapFilter>({
     table: "roadmaps",
@@ -540,6 +732,41 @@ export const getRoadmapById = async (roadmapId: string): Promise<QuizRoadmap | n
     [roadmapId] as InArgs,
     toRoadmap,
   );
+
+export const createRoadmap = async (input: CreateRoadmapInput): Promise<QuizRoadmap> =>
+  runReturningMutation(
+    requireOperation("roadmaps", "insert"),
+    [
+      toNumericId(input.id),
+      toNumericId(input.platformId),
+      toNumericId(input.subjectId),
+      toNumericId(input.topicId),
+      input.name,
+      toBooleanInt(input.isActive),
+      input.qCount ?? null,
+    ] as InArgs,
+    toRoadmap,
+    "Failed to create roadmap.",
+  );
+
+export const updateRoadmap = async (input: UpdateRoadmapInput): Promise<QuizRoadmap> =>
+  runReturningMutation(
+    requireOperation("roadmaps", "update"),
+    [
+      input.platformId !== undefined ? toNumericId(input.platformId) : null,
+      input.subjectId !== undefined ? toNumericId(input.subjectId) : null,
+      input.topicId !== undefined ? toNumericId(input.topicId) : null,
+      input.name ?? null,
+      toBooleanInt(input.isActive),
+      input.qCount ?? null,
+      toNumericId(input.id),
+    ] as InArgs,
+    toRoadmap,
+    "Failed to update roadmap.",
+  );
+
+export const deleteRoadmap = async (roadmapId: number | string): Promise<boolean> =>
+  runDelete(requireOperation("roadmaps", "delete"), [roadmapId] as InArgs);
 
 export const listQuestions = (options: QueryOptions<QuestionFilter> = {}) =>
   runPaginatedQuery<QuizQuestion, QuestionFilter>({

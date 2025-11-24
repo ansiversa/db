@@ -28,7 +28,7 @@ export const loadEnvConfig = (options: LoadEnvConfigOptions = {}): AnsiversaDbCo
   const coreAuthVar = options.coreAuthTokenVar ?? DEFAULT_CORE_AUTH_VAR;
   const defaultAuthVar = options.defaultAuthTokenVar ?? coreAuthVar;
 
-  const apps = options.apps ?? [];
+  const apps = options.apps ?? ["quiz"];
   const appConfigs: AppDatabaseConfigs = {};
 
   for (const appName of apps) {
