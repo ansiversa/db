@@ -1,11 +1,12 @@
-# Ansiversa â€“ Core + DB Final Review Checklist
+# Ansiversa – Core + DB Final Review Checklist
+
 This document ensures that **Core API** and **@ansiversa/db** are fully correct and complete before moving to Web/Admin integration.
 
 Use this checklist in Codex to verify everything.
 
 ---
 
-# âœ… 1. DATABASE LAYER (NPM PACKAGE: @ansiversa/db)
+# ✅ 1. DATABASE LAYER (NPM PACKAGE: @ansiversa/db)
 
 ## 1.1 Parent DB: ansiversadb
 Ensure the following tables exist with correct SQL:
@@ -19,7 +20,7 @@ Ensure the following tables exist with correct SQL:
 
 ### Subscriptions table:
 - id (INTEGER AUTOINCREMENT)
-- user_id (TEXT FOREIGN KEY â†’ users)
+- user_id (TEXT FOREIGN KEY -> users)
 - plan (TEXT)
 - status (TEXT CHECK: active, cancelled, expired)
 - period_start (timestamp)
@@ -79,7 +80,7 @@ Checklist:
 
 ---
 
-# âœ… 2. CORE API (core.ansiversa.com)
+# ✅ 2. CORE API (core.ansiversa.com)
 
 ## 2.1 JWT Authentication Layer
 
@@ -136,7 +137,7 @@ Rules:
 
 ---
 
-# âœ… 3. QUIZ ENDPOINTS (through Core API)
+# ✅ 3. QUIZ ENDPOINTS (through Core API)
 
 Checklist:
 - [ ] `/api/quiz/platforms` (GET + POST)
@@ -156,7 +157,7 @@ Rules:
 
 ---
 
-# âœ… 4. INFRASTRUCTURE CHECKS
+# ✅ 4. INFRASTRUCTURE CHECKS
 
 Checklist:
 - [ ] CORS middleware allows:
@@ -187,4 +188,4 @@ Partner must verify:
   - Quiz results
   - JWT protected routes
 
-When all boxes are checked, Ansiversa Core is **officially production-ready**, and we can proceed to **Web/Auth UI â†’ Admin â†’ Mini apps**.
+When all boxes are checked, Ansiversa Core is **officially production-ready**, and we can proceed to **Web/Auth UI -> Admin -> Mini apps**.

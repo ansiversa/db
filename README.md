@@ -16,8 +16,8 @@ Initialize the package once during server startup. You can either construct the 
 import { initAnsiversaDb, loadEnvConfig } from "@ansiversa/db";
 
 // Option A: load from environment variables
-// Requires ANSIVERSA_CORE_DB_URL and TURSO_AUTH_TOKEN to be set.
-// Provide the list of mini-apps you want to configure.
+// Requires ANSIVERSA_CORE_DB_URL, ANSIVERSA_QUIZ_DB_URL, and TURSO_AUTH_TOKEN to be set.
+// Provide the list of mini-apps you want to configure (defaults to ["quiz"]).
 initAnsiversaDb(
   loadEnvConfig({
     apps: ["quiz"],

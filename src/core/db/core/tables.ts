@@ -18,7 +18,7 @@ export const coreTableDefinitions: CoreTableDefinition[] = [
         email TEXT NOT NULL UNIQUE,
         name TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `),
     indexes: [
@@ -30,13 +30,14 @@ export const coreTableDefinitions: CoreTableDefinition[] = [
     description: "User subscriptions and plan status.",
     createStatement: normalize(`
       CREATE TABLE IF NOT EXISTS subscriptions (
-        id TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id TEXT NOT NULL,
         plan TEXT NOT NULL,
-        status TEXT NOT NULL CHECK (status IN ('active','canceled','trialing','past_due')),
-        current_period_end TEXT,
+        status TEXT NOT NULL CHECK (status IN ('active','cancelled','expired')),
+        period_start TEXT,
+        period_end TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
       );
     `),
